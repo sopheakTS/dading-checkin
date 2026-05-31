@@ -1,28 +1,69 @@
-// ================= CONFIG =================
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwnoxrYA052pU-q1Uv4_Joq63F05wwgzev3BBehO2415xkXQ0tN38Mv-0HlUDsbTjA0/exec";
+<!DOCTYPE html>
+<html>
+<head>
+  <title>DaDing Checkin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-// TELEGRAM USER (FIXED)
+  <style>
+    body {
+      font-family: Arial;
+      background: #f1f2f6;
+      text-align: center;
+      padding: 30px;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+    }
+
+    input {
+      padding: 10px;
+      width: 80%;
+      margin: 8px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      background: #3742fa;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #2f3542;
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="app">Loading...</div>
+
+<script>
+// ================= CONFIG =================
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxOc3yeQ0U4Ix3QaYwnJ3jRqJXBeSa_HUxCnYpLOnbMjOjdXcEpCM8ChzVWg2zaGDY/exec";
+
 const user = {
   id: 1388346115,
   name: "Employee"
 };
 
-// COMPANY LOCATIONS
 const locations = [
   { lat: 11.515820203096961, lng: 104.84054542731057 },
   { lat: 11.502781843962362, lng: 104.85225701196639 }
 ];
 
-const MAX_DISTANCE = 200; // meters
+const MAX_DISTANCE = 200;
 const WORK_START = "08:00";
-
-// ================= STATE =================
-let currentPage = "loading";
-let isRegistered = false;
 
 // ================= HELPER =================
 
-// Distance (Haversine)
+// Distance
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371e3;
   const φ1 = lat1 * Math.PI/180;
@@ -31,23 +72,21 @@ function getDistance(lat1, lon1, lat2, lon2) {
   const Δλ = (lon2-lon1) * Math.PI/180;
 
   const a =
-    Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+    Math.sin(Δφ/2)**2 +
     Math.cos(φ1) * Math.cos(φ2) *
-    Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    Math.sin(Δλ/2)**2;
 
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// Check if inside any allowed location
+// Location check
 function isInsideLocation(lat, lng) {
   return locations.some(loc => {
-    const d = getDistance(lat, lng, loc.lat, loc.lng);
-    return d <= MAX_DISTANCE;
+    return getDistance(lat, lng, loc.lat, loc.lng) <= MAX_DISTANCE;
   });
 }
 
-// Late / On-time
+// Status
 function getStatus() {
   const now = new Date();
   const [h, m] = WORK_START.split(":");
@@ -60,29 +99,31 @@ function getStatus() {
 
 // ================= API =================
 
-// CHECK USER REGISTER
 async function checkUser() {
-  const res = await fetch(WEB_APP_URL);
-  const data = await res.json();
+  try {
+    const res = await fetch(WEB_APP_URL);
+    const data = await res.json();
 
-  const found = data.employees.find(r => r[1] == user.id);
+    const found = data.employees.find(r => r[1] == user.id);
 
-  if (found) {
-    isRegistered = true;
-    showHome();
-  } else {
-    showRegister();
+    if (found) {
+      showHome();
+    } else {
+      showRegister();
+    }
+
+  } catch (err) {
+    document.getElementById("app").innerHTML = "❌ Server Error";
   }
 }
 
-// REGISTER
 async function register() {
   const name = document.getElementById("name").value;
   const phone = document.getElementById("phone").value;
   const position = document.getElementById("position").value;
 
   if (!name || !phone || !position) {
-    alert("Fill all fields!");
+    alert("❌ Fill all fields");
     return;
   }
 
@@ -98,18 +139,18 @@ async function register() {
     })
   });
 
-  alert("Registered!");
+  alert("✅ Registered");
   showHome();
 }
 
-// CHECK-IN / OUT
 function check(type) {
   navigator.geolocation.getCurrentPosition(async pos => {
+
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
 
     if (!isInsideLocation(lat, lng)) {
-      alert("❌ You are outside company area!");
+      alert("❌ Outside company area");
       return;
     }
 
@@ -129,24 +170,27 @@ function check(type) {
       })
     });
 
-    alert(`✅ ${type} Success`);
+    alert("✅ " + type + " Success");
+
+  }, () => {
+    alert("❌ Please enable GPS");
   });
 }
 
 // ================= UI =================
 
 function showRegister() {
-  document.body.innerHTML = `
+  document.getElementById("app").innerHTML = `
     <h2>Register</h2>
-    <input id="name" placeholder="Name"><br><br>
-    <input id="phone" placeholder="Phone"><br><br>
-    <input id="position" placeholder="Position"><br><br>
+    <input id="name" placeholder="Name"><br>
+    <input id="phone" placeholder="Phone"><br>
+    <input id="position" placeholder="Position"><br>
     <button onclick="register()">Submit</button>
   `;
 }
 
 function showHome() {
-  document.body.innerHTML = `
+  document.getElementById("app").innerHTML = `
     <h2>Attendance System</h2>
     <button onclick="check('IN')">Check In</button>
     <br><br>
@@ -156,3 +200,8 @@ function showHome() {
 
 // ================= START =================
 checkUser();
+
+</script>
+
+</body>
+</html>
