@@ -134,14 +134,26 @@ function check(type){
           fetch(API, {
   method: "POST",
   body: JSON.stringify({
-    source: "web",   // ✅ ADD THIS
+    source: "web",
     name: localStorage.getItem("name"),
     type: type,
     lat: lat,
     lng: lng,
     image: base64
   })
+}) // <--- លុបសញ្ញាដង្កៀបមួយចេញនៅទីនេះ
+.then(res => res.json())
+.then(res => {
+    console.log(res);
+    if(res.ok){ // កែពី res.success ជា res.ok (ព្រោះក្នុង App Script អ្នកប្រើ ok)
+      alert(type + " success ✅");
+    } else {
+      alert("Server error ❌: " + JSON.stringify(res));
+    }
 })
+.catch(err => {
+    alert("Connection error ❌: " + err);
+});
           })
           .then(res => res.json())
           .then(res => {
