@@ -4,34 +4,54 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DaDing Check-in</title>
   <style>
-    body { font-family: sans-serif; text-align: center; padding: 20px; }
-    input, button { width: 90%; padding: 15px; margin: 10px; border-radius: 10px; }
+    body { font-family: Arial; text-align: center; background: #f4f6f9; padding: 20px; }
+    input { width: 85%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 8px; }
+    button { width: 90%; padding: 15px; margin: 15px 0; background: #007bff; color: white; border: none; border-radius: 10px; font-size: 16px; }
+    .btn-check { background: green; }
+    .btn-out { background: red; }
   </style>
 </head>
 <body>
+
   <div id="registerBox">
     <h2>Register</h2>
     <input id="name" placeholder="Name">
+    <input id="phone" placeholder="Phone">
     <button onclick="register()">Register</button>
   </div>
+
   <div id="mainBox" style="display:none;">
     <h2 id="welcomeText"></h2>
-    <button onclick="check('IN')">Check-in</button>
-    <button onclick="check('OUT')">Check-out</button>
+    <button class="btn-check" onclick="check('IN')">Check-in</button>
+    <button class="btn-out" onclick="check('OUT')">Check-out</button>
+    <button onclick="logout()" style="background:#6c757d;">Logout</button>
   </div>
 
   <script>
-    const API = "https://script.google.com/macros/s/AKfycbxF_HWLbFuqv6J0P8D7EnmsoaWogEfLFC6kpzjhb8mCO_DGTTVUVAKS5knJjBOKHWia/exec"; // ដាក់ URL ថ្មីរបស់អ្នកនៅទីនេះ
+    const API = "https://script.google.com/macros/s/AKfycbxF_HWLbFuqv6J0P8D7EnmsoaWogEfLFC6kpzjhb8mCO_DGTTVUVAKS5knJjBOKHWia/exec";
 
-    function register(){
-      localStorage.setItem("name", document.getElementById("name").value);
-      location.reload();
+    // ពិនិត្យថាមានឈ្មោះហើយឬនៅ
+    if(localStorage.getItem("name")){
+      showMain();
     }
 
-    if(localStorage.getItem("name")){
-      document.getElementById("registerBox").style.display="none";
-      document.getElementById("mainBox").style.display="block";
+    function showMain(){
+      document.getElementById("registerBox").style.display = "none";
+      document.getElementById("mainBox").style.display = "block";
       document.getElementById("welcomeText").innerText = "Welcome, " + localStorage.getItem("name");
+    }
+
+    function register(){
+      let name = document.getElementById("name").value.trim();
+      if(!name){ alert("Please enter name"); return; }
+      localStorage.setItem("name", name);
+      alert("Registered successfully!");
+      showMain();
+    }
+
+    function logout(){
+      localStorage.clear();
+      location.reload();
     }
 
     function check(type){
@@ -41,15 +61,25 @@
         input.onchange = () => {
           let reader = new FileReader();
           reader.onloadend = () => {
+            alert("Uploading...");
             fetch(API, {
               method: "POST",
-              body: JSON.stringify({source:"web", name:localStorage.getItem("name"), type:type, lat:pos.coords.latitude, lng:pos.coords.longitude, image:reader.result.split(",")[1]})
-            }).then(() => alert("Success ✅"));
+              body: JSON.stringify({
+                source: "web",
+                name: localStorage.getItem("name"),
+                type: type,
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+                image: reader.result.split(",")[1]
+              })
+            }).then(res => res.json()).then(data => {
+              alert(type + " success!");
+            }).catch(err => alert("Error: " + err));
           };
           reader.readAsDataURL(input.files[0]);
         };
         input.click();
-      });
+      }, () => alert("Please allow location access"));
     }
   </script>
 </body>
