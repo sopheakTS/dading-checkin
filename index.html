@@ -16,7 +16,7 @@ function doPost(e) {
     const base64Data = photo.split(",")[1];
     const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), "image/png", "photo_"+Date.now()+".png");
 
-    const folder = DriveApp.getFolderById("YOUR_FOLDER_ID"); // 🔁 ដាក់ Folder ID
+    const folder = DriveApp.getFolderById("1wCs2u3r3jmVnkXxNPFooqevYAX4Xa9PG"); // 🔁 ដាក់ Folder ID
     const file = folder.createFile(blob);
 
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
