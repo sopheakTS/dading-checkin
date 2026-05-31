@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>DaDing Checkin</title>
+  <title>DaDing Check-in</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
@@ -45,6 +45,7 @@
 <div id="app">Loading...</div>
 
 <script>
+
 // ================= CONFIG =================
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwnoxrYA052pU-q1Uv4_Joq63F05wwgzev3BBehO2415xkXQ0tN38Mv-0HlUDsbTjA0/exec";
 
@@ -58,12 +59,12 @@ const locations = [
   { lat: 11.502781843962362, lng: 104.85225701196639 }
 ];
 
-const MAX_DISTANCE = 200;
+const MAX_DISTANCE = 200; // meters
 const WORK_START = "08:00";
 
 // ================= HELPER =================
 
-// Distance
+// Distance (Haversine)
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371e3;
   const φ1 = lat1 * Math.PI/180;
@@ -79,14 +80,14 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// Location check
+// Check location
 function isInsideLocation(lat, lng) {
   return locations.some(loc => {
     return getDistance(lat, lng, loc.lat, loc.lng) <= MAX_DISTANCE;
   });
 }
 
-// Status
+// Late / On-time
 function getStatus() {
   const now = new Date();
   const [h, m] = WORK_START.split(":");
@@ -99,12 +100,18 @@ function getStatus() {
 
 // ================= API =================
 
+// CHECK USER (FIX HEADER BUG)
 async function checkUser() {
   try {
     const res = await fetch(WEB_APP_URL);
     const data = await res.json();
 
-    const found = data.employees.find(r => r[1] == user.id);
+    const employees = data.employees || [];
+
+    // 🔥 FIX: SKIP HEADER
+    const found = employees
+      .slice(1)
+      .find(r => String(r[1]) === String(user.id));
 
     if (found) {
       showHome();
@@ -113,10 +120,14 @@ async function checkUser() {
     }
 
   } catch (err) {
-    document.getElementById("app").innerHTML = "❌ Server Error";
+    document.getElementById("app").innerHTML = `
+      <h3>❌ Server Error</h3>
+      <button onclick="checkUser()">Retry</button>
+    `;
   }
 }
 
+// REGISTER
 async function register() {
   const name = document.getElementById("name").value;
   const phone = document.getElementById("phone").value;
@@ -143,6 +154,7 @@ async function register() {
   showHome();
 }
 
+// CHECK-IN / OUT
 function check(type) {
   navigator.geolocation.getCurrentPosition(async pos => {
 
