@@ -1,31 +1,96 @@
-<script>
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DaDing Check-in</title>
 
+<style>
+body {
+  font-family: Arial;
+  text-align: center;
+  background: #f4f6f9;
+}
+.container {
+  padding: 20px;
+}
+button {
+  width: 90%;
+  padding: 15px;
+  margin: 10px;
+  font-size: 18px;
+  border: none;
+  border-radius: 10px;
+}
+.checkin { background: green; color: white; }
+.checkout { background: red; color: white; }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div id="registerBox">
+  <h2>Register</h2>
+  <input id="name" placeholder="Name"><br><br>
+  <input id="phone" placeholder="Phone"><br><br>
+  <button onclick="register()">Register</button>
+</div>
+
+<div id="mainBox" style="display:none;">
+  <h2>Welcome</h2>
+  <button class="checkin" onclick="check('IN')">Check-in</button>
+  <button class="checkout" onclick="check('OUT')">Check-out</button>
+
+  <h3>History</h3>
+  <div id="history"></div>
+</div>
+
+</div>
+
+<script>
 const API = "https://script.google.com/macros/s/AKfycbz437yKdKQYTEhDjmGQEyYGusZfbDmH9T4xk8rS5EMm-WYJ9ILBTG30vDnRit5iajwG/exec";
+
+// CHECK USER
+if(localStorage.getItem("name")){
+  document.getElementById("registerBox").style.display="none";
+  document.getElementById("mainBox").style.display="block";
+}
+
+// REGISTER
+function register(){
+  let name = document.getElementById("name").value;
+  let phone = document.getElementById("phone").value;
+
+  localStorage.setItem("name", name);
+
+  alert("Registered!");
+
+  location.reload();
+}
 
 // CHECK-IN / OUT
 function check(type){
-  navigator.geolocation.getCurrentPosition(async (pos) => {
+  navigator.geolocation.getCurrentPosition(pos => {
 
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
+    let lat = pos.coords.latitude;
+    let lng = pos.coords.longitude;
 
-    const input = document.createElement("input");
+    // CAMERA AUTO
+    let input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
-    input.capture = "environment";
+    input.capture = "camera";
 
-    input.onchange = async () => {
-      const file = input.files[0];
-      const reader = new FileReader();
+    input.onchange = () => {
+      let file = input.files[0];
+      let reader = new FileReader();
 
-      reader.onloadend = async () => {
-        const base64 = reader.result.split(",")[1];
+      reader.onloadend = () => {
+        let base64 = reader.result.split(",")[1];
 
-        const res = await fetch(API, {
+        fetch(API, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
           body: JSON.stringify({
             action: "check",
             name: localStorage.getItem("name"),
@@ -34,20 +99,21 @@ function check(type){
             lng: lng,
             image: base64
           })
+        })
+        .then(res => res.json())
+        .then(res => {
+          alert(type + " success!");
         });
-
-        const result = await res.json();
-
-        if(result.success){
-          alert(type + " success ✅");
-        }
       };
 
       reader.readAsDataURL(file);
     };
 
     input.click();
+
   });
 }
-
 </script>
+
+</body>
+</html>
