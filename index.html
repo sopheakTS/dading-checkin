@@ -1,61 +1,71 @@
-function doPost(e) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Attendance");
-  const data = JSON.parse(e.postData.contents);
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
 
-  const name = data.name;
-  const telegramId = data.telegramId;
-  const type = data.type;
-  const lat = data.lat;
-  const lng = data.lng;
-  const photo = data.photo;
+<body>
+<h2>Check In / Out</h2>
 
-  let photoUrl = "no-photo";
+<button onclick="sendData('IN')">Check In</button>
+<button onclick="sendData('OUT')">Check Out</button>
 
-  // 📸 Upload photo to Google Drive
-  if(photo && photo.startsWith("data:image")){
-    const base64Data = photo.split(",")[1];
-    const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), "image/png", "photo_"+Date.now()+".png");
+<br><br>
+<button onclick="takePhoto()">📸 Take Photo</button>
+<input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
 
-    const folder = DriveApp.getFolderById("1wCs2u3r3jmVnkXxNPFooqevYAX4Xa9PG"); // 🔁 ដាក់ Folder ID
-    const file = folder.createFile(blob);
+<script>
+const API_URL = "YOUR_GOOGLE_SCRIPT_URL";
 
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+const tg = window.Telegram.WebApp;
+tg.expand();
 
-    photoUrl = file.getUrl();
+let user = tg.initDataUnsafe.user;
+let name = user?.first_name + " " + (user?.last_name || "");
+let telegramId = user?.id;
+
+let photoBase64 = "";
+
+document.getElementById('photoInput').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  const reader = new FileReader();
+  reader.onload = function(){
+    photoBase64 = reader.result;
   }
+  reader.readAsDataURL(file);
+});
 
-  // 🛑 Prevent duplicate (same day + same type)
-  const lastRow = sheet.getLastRow();
-  const values = sheet.getRange(2,1,lastRow-1,8).getValues();
-  const today = new Date().toDateString();
-
-  for(let i = values.length -1; i >=0; i--){
-    let row = values[i];
-    let rowDate = new Date(row[6]).toDateString();
-
-    if(row[1] == telegramId && rowDate == today && row[2] == type){
-      return ContentService
-        .createTextOutput(JSON.stringify({status:"error", message:"Already checked"}))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-  }
-
-  // ✅ Save to Sheet
-  sheet.appendRow([
-    name,
-    telegramId,
-    type,
-    lat,
-    lng,
-    photoUrl,
-    new Date(),
-    "OK"
-  ]);
-
-  return ContentService
-    .createTextOutput(JSON.stringify({
-      status:"success",
-      photo: photoUrl
-    }))
-    .setMimeType(ContentService.MimeType.JSON);
+function takePhoto(){
+  document.getElementById('photoInput').click();
 }
+
+function sendData(type){
+  navigator.geolocation.getCurrentPosition(function(pos){
+
+    fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        name: name,
+        telegramId: telegramId,
+        type: type,
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        photo: photoBase64
+      })
+    })
+    .then(res=>res.json())
+    .then(res=>{
+      if(res.status=="success"){
+        alert("✅ Success");
+      }else{
+        alert("❌ "+res.message);
+      }
+    });
+
+  });
+}
+</script>
+
+</body>
+</html>
