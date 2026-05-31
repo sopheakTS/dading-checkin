@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DaDing Warehouse Employee System</title>
-    <!-- បណ្ណាល័យចាំបាច់ -->
+    <!-- បណ្ណាល័យសម្រាប់ដំណើរការ React ក្នុង HTML -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -19,11 +19,12 @@
         const App = () => {
             const [lang, setLang] = useState('kh');
             const [user, setUser] = useState(null);
+            const [currentPage, setCurrentPage] = useState('home');
 
             const translations = {
-                kh: { title: "ប្រព័ន្ធគ្រប់គ្រងបុគ្គលិក DaDing", checkIn: "ចូលធ្វើការ", checkOut: "ចេញធ្វើការ", status: "ស្ថានភាព", insideZone: "អ្នកស្ថិតនៅក្នុងតំបន់កំណត់", login: "ចូលដោយប្រើ Telegram", welcome: "សួស្តី" },
-                en: { title: "DaDing Employee System", checkIn: "Check In", checkOut: "Check Out", status: "Status", insideZone: "Inside attendance zone", login: "Login with Telegram", welcome: "Welcome" },
-                zh: { title: "达鼎仓库管理系统", checkIn: "签到", checkOut: "签退", status: "状态", insideZone: "在考勤范围内", login: "使用 Telegram 登录", welcome: "欢迎" }
+                kh: { title: "ប្រព័ន្ធគ្រប់គ្រងបុគ្គលិក DaDing", checkIn: "ចូលធ្វើការ", checkOut: "ចេញធ្វើការ", dashboard: "ផ្ទាំងគ្រប់គ្រង", status: "ស្ថានភាព", insideZone: "អ្នកស្ថិតនៅក្នុងតំបន់កំណត់", login: "ចូលដោយប្រើ Telegram", welcome: "សួស្តី" },
+                en: { title: "DaDing Employee System", checkIn: "Check In", checkOut: "Check Out", dashboard: "Dashboard", status: "Status", insideZone: "Inside attendance zone", login: "Login with Telegram", welcome: "Welcome" },
+                zh: { title: "达鼎仓库管理系统", checkIn: "签到", checkOut: "签退", dashboard: "仪表板", status: "状态", insideZone: "在考勤范围内", login: "使用 Telegram 登录", welcome: "欢迎" }
             };
 
             const t = translations[lang];
