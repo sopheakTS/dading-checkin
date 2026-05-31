@@ -1,219 +1,61 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>DaDing Check-in</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+function doPost(e) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Attendance");
+  const data = JSON.parse(e.postData.contents);
 
-  <style>
-    body {
-      font-family: Arial;
-      background: #f1f2f6;
-      text-align: center;
-      padding: 30px;
-    }
+  const name = data.name;
+  const telegramId = data.telegramId;
+  const type = data.type;
+  const lat = data.lat;
+  const lng = data.lng;
+  const photo = data.photo;
 
-    h2 {
-      margin-bottom: 20px;
-    }
+  let photoUrl = "no-photo";
 
-    input {
-      padding: 10px;
-      width: 80%;
-      margin: 8px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-    }
+  // 📸 Upload photo to Google Drive
+  if(photo && photo.startsWith("data:image")){
+    const base64Data = photo.split(",")[1];
+    const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), "image/png", "photo_"+Date.now()+".png");
 
-    button {
-      padding: 12px 20px;
-      border: none;
-      border-radius: 8px;
-      background: #3742fa;
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
-    }
+    const folder = DriveApp.getFolderById("YOUR_FOLDER_ID"); // 🔁 ដាក់ Folder ID
+    const file = folder.createFile(blob);
 
-    button:hover {
-      background: #2f3542;
-    }
-  </style>
-</head>
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
-<body>
-
-<div id="app">Loading...</div>
-
-<script>
-
-// ================= CONFIG =================
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwnoxrYA052pU-q1Uv4_Joq63F05wwgzev3BBehO2415xkXQ0tN38Mv-0HlUDsbTjA0/exec";
-
-const user = {
-  id: 1388346115,
-  name: "Employee"
-};
-
-const locations = [
-  { lat: 11.515820203096961, lng: 104.84054542731057 },
-  { lat: 11.502781843962362, lng: 104.85225701196639 }
-];
-
-const MAX_DISTANCE = 200; // meters
-const WORK_START = "08:00";
-
-// ================= HELPER =================
-
-// Distance (Haversine)
-function getDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371e3;
-  const φ1 = lat1 * Math.PI/180;
-  const φ2 = lat2 * Math.PI/180;
-  const Δφ = (lat2-lat1) * Math.PI/180;
-  const Δλ = (lon2-lon1) * Math.PI/180;
-
-  const a =
-    Math.sin(Δφ/2)**2 +
-    Math.cos(φ1) * Math.cos(φ2) *
-    Math.sin(Δλ/2)**2;
-
-  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-
-// Check location
-function isInsideLocation(lat, lng) {
-  return locations.some(loc => {
-    return getDistance(lat, lng, loc.lat, loc.lng) <= MAX_DISTANCE;
-  });
-}
-
-// Late / On-time
-function getStatus() {
-  const now = new Date();
-  const [h, m] = WORK_START.split(":");
-
-  const start = new Date();
-  start.setHours(h, m, 0);
-
-  return now > start ? "Late" : "On-time";
-}
-
-// ================= API =================
-
-// CHECK USER (FIX HEADER BUG)
-async function checkUser() {
-  try {
-    const res = await fetch(WEB_APP_URL);
-    const data = await res.json();
-
-    const employees = data.employees || [];
-
-    // 🔥 FIX: SKIP HEADER
-    const found = employees
-      .slice(1)
-      .find(r => String(r[1]) === String(user.id));
-
-    if (found) {
-      showHome();
-    } else {
-      showRegister();
-    }
-
-  } catch (err) {
-    document.getElementById("app").innerHTML = `
-      <h3>❌ Server Error</h3>
-      <button onclick="checkUser()">Retry</button>
-    `;
-  }
-}
-
-// REGISTER
-async function register() {
-  const name = document.getElementById("name").value;
-  const phone = document.getElementById("phone").value;
-  const position = document.getElementById("position").value;
-
-  if (!name || !phone || !position) {
-    alert("❌ Fill all fields");
-    return;
+    photoUrl = file.getUrl();
   }
 
-  await fetch(WEB_APP_URL, {
-    method: "POST",
-    body: JSON.stringify({
-      type: "REGISTER",
-      name,
-      telegram_id: user.id,
-      phone,
-      position,
-      time: new Date().toLocaleString()
-    })
-  });
+  // 🛑 Prevent duplicate (same day + same type)
+  const lastRow = sheet.getLastRow();
+  const values = sheet.getRange(2,1,lastRow-1,8).getValues();
+  const today = new Date().toDateString();
 
-  alert("✅ Registered");
-  showHome();
-}
+  for(let i = values.length -1; i >=0; i--){
+    let row = values[i];
+    let rowDate = new Date(row[6]).toDateString();
 
-// CHECK-IN / OUT
-function check(type) {
-  navigator.geolocation.getCurrentPosition(async pos => {
-
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
-
-    if (!isInsideLocation(lat, lng)) {
-      alert("❌ Outside company area");
-      return;
+    if(row[1] == telegramId && rowDate == today && row[2] == type){
+      return ContentService
+        .createTextOutput(JSON.stringify({status:"error", message:"Already checked"}))
+        .setMimeType(ContentService.MimeType.JSON);
     }
+  }
 
-    const status = type === "IN" ? getStatus() : "";
+  // ✅ Save to Sheet
+  sheet.appendRow([
+    name,
+    telegramId,
+    type,
+    lat,
+    lng,
+    photoUrl,
+    new Date(),
+    "OK"
+  ]);
 
-    await fetch(WEB_APP_URL, {
-      method: "POST",
-      body: JSON.stringify({
-        name: user.name,
-        telegram_id: user.id,
-        type,
-        lat,
-        lng,
-        photo: "no-photo",
-        time: new Date().toLocaleString(),
-        status
-      })
-    });
-
-    alert("✅ " + type + " Success");
-
-  }, () => {
-    alert("❌ Please enable GPS");
-  });
+  return ContentService
+    .createTextOutput(JSON.stringify({
+      status:"success",
+      photo: photoUrl
+    }))
+    .setMimeType(ContentService.MimeType.JSON);
 }
-
-// ================= UI =================
-
-function showRegister() {
-  document.getElementById("app").innerHTML = `
-    <h2>Register</h2>
-    <input id="name" placeholder="Name"><br>
-    <input id="phone" placeholder="Phone"><br>
-    <input id="position" placeholder="Position"><br>
-    <button onclick="register()">Submit</button>
-  `;
-}
-
-function showHome() {
-  document.getElementById("app").innerHTML = `
-    <h2>Attendance System</h2>
-    <button onclick="check('IN')">Check In</button>
-    <br><br>
-    <button onclick="check('OUT')">Check Out</button>
-  `;
-}
-
-// ================= START =================
-checkUser();
-
-</script>
-
-</body>
-</html>
