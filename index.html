@@ -1,67 +1,115 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DaDing Check-in</title>
+
+<style>
+body {
+  font-family: Arial;
+  text-align: center;
+  background: #f4f6f9;
+}
+.container {
+  padding: 20px;
+}
+button {
+  width: 90%;
+  padding: 15px;
+  margin: 10px;
+  font-size: 18px;
+  border: none;
+  border-radius: 10px;
+}
+.checkin { background: green; color: white; }
+.checkout { background: red; color: white; }
+</style>
 </head>
 
 <body>
-<h2>Check In / Out</h2>
 
-<button onclick="sendData('IN')">Check In</button>
-<button onclick="sendData('OUT')">Check Out</button>
+<div class="container">
 
-<br><br>
-<button onclick="takePhoto()">📸 Take Photo</button>
-<input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
+<div id="registerBox">
+  <h2>Register</h2>
+  <input id="name" placeholder="Name"><br><br>
+  <input id="phone" placeholder="Phone"><br><br>
+  <button onclick="register()">Register</button>
+</div>
+
+<div id="mainBox" style="display:none;">
+  <h2>Welcome</h2>
+  <button class="checkin" onclick="check('IN')">Check-in</button>
+  <button class="checkout" onclick="check('OUT')">Check-out</button>
+
+  <h3>History</h3>
+  <div id="history"></div>
+</div>
+
+</div>
 
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbyc3qrtY1jka66HlsWne2h8yf0TD7Ceq4v8ON86IGLs5zHu8aMSARxMyO1X5SV_aMkO/exec";
+const API = "https://script.google.com/macros/s/AKfycbzYKg-AF2jY1z2kAk_9HnVdlwfWLbs3vQbR5ZLsu2yUmUVKRRcReDKSWEeK6UypUSwC/exec";
 
-const tg = window.Telegram.WebApp;
-tg.expand();
-
-let user = tg.initDataUnsafe.user;
-let name = user?.first_name + " " + (user?.last_name || "");
-let telegramId = user?.id;
-
-let photoBase64 = "";
-
-document.getElementById('photoInput').addEventListener('change', function(e){
-  const file = e.target.files[0];
-  const reader = new FileReader();
-  reader.onload = function(){
-    photoBase64 = reader.result;
-  }
-  reader.readAsDataURL(file);
-});
-
-function takePhoto(){
-  document.getElementById('photoInput').click();
+// CHECK USER
+if(localStorage.getItem("name")){
+  document.getElementById("registerBox").style.display="none";
+  document.getElementById("mainBox").style.display="block";
 }
 
-function sendData(type){
-  navigator.geolocation.getCurrentPosition(function(pos){
+// REGISTER
+function register(){
+  let name = document.getElementById("name").value;
+  let phone = document.getElementById("phone").value;
 
-    fetch(API_URL, {
-      method: "POST",
-      body: JSON.stringify({
-        name: name,
-        telegramId: telegramId,
-        type: type,
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-        photo: photoBase64
-      })
-    })
-    .then(res=>res.json())
-    .then(res=>{
-      if(res.status=="success"){
-        alert("✅ Success");
-      }else{
-        alert("❌ "+res.message);
-      }
-    });
+  localStorage.setItem("name", name);
+
+  alert("Registered!");
+
+  location.reload();
+}
+
+// CHECK-IN / OUT
+function check(type){
+  navigator.geolocation.getCurrentPosition(pos => {
+
+    let lat = pos.coords.latitude;
+    let lng = pos.coords.longitude;
+
+    // CAMERA AUTO
+    let input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.capture = "camera";
+
+    input.onchange = () => {
+      let file = input.files[0];
+      let reader = new FileReader();
+
+      reader.onloadend = () => {
+        let base64 = reader.result.split(",")[1];
+
+        fetch(API, {
+          method: "POST",
+          body: JSON.stringify({
+            action: "check",
+            name: localStorage.getItem("name"),
+            type: type,
+            lat: lat,
+            lng: lng,
+            image: base64
+          })
+        })
+        .then(res => res.json())
+        .then(res => {
+          alert(type + " success!");
+        });
+      };
+
+      reader.readAsDataURL(file);
+    };
+
+    input.click();
 
   });
 }
