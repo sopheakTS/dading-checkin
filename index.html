@@ -1,187 +1,56 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DaDing Check-in</title>
-
-<style>
-body {
-  font-family: Arial;
-  text-align: center;
-  background: #f4f6f9;
-}
-.container {
-  padding: 20px;
-}
-input {
-  width: 85%;
-  padding: 10px;
-  margin: 5px;
-  font-size: 16px;
-}
-button {
-  width: 90%;
-  padding: 15px;
-  margin: 10px;
-  font-size: 18px;
-  border: none;
-  border-radius: 10px;
-}
-.checkin { background: green; color: white; }
-.checkout { background: red; color: white; }
-</style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DaDing Check-in</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 20px; }
+    input, button { width: 90%; padding: 15px; margin: 10px; border-radius: 10px; }
+  </style>
 </head>
-
 <body>
+  <div id="registerBox">
+    <h2>Register</h2>
+    <input id="name" placeholder="Name">
+    <button onclick="register()">Register</button>
+  </div>
+  <div id="mainBox" style="display:none;">
+    <h2 id="welcomeText"></h2>
+    <button onclick="check('IN')">Check-in</button>
+    <button onclick="check('OUT')">Check-out</button>
+  </div>
 
-<div class="container">
+  <script>
+    const API = "https://script.google.com/macros/s/AKfycbxF_HWLbFuqv6J0P8D7EnmsoaWogEfLFC6kpzjhb8mCO_DGTTVUVAKS5knJjBOKHWia/exec"; // ដាក់ URL ថ្មីរបស់អ្នកនៅទីនេះ
 
-<!-- REGISTER -->
-<div id="registerBox">
-  <h2>Register</h2>
-  <input id="name" placeholder="Name"><br>
-  <input id="phone" placeholder="Phone"><br>
-  <button onclick="register()">Register</button>
-</div>
-
-<!-- MAIN -->
-<div id="mainBox" style="display:none;">
-  <h2 id="welcomeText"></h2>
-
-  <button class="checkin" onclick="check('IN')">Check-in</button>
-  <button class="checkout" onclick="check('OUT')">Check-out</button>
-
-  <h3>History</h3>
-  <div id="history">No data</div>
-
-  <button onclick="logout()">Logout</button>
-</div>
-
-</div>
-
-<script>
-// 🔗 API URL (ដាក់របស់អ្នក)
-const API = "https://script.google.com/macros/s/AKfycbxRXFU0YRGa8Yot_p6A-s7JBB4Vt7sDXmDA4RiikaLi1Pz245puI2AmXcuU_ENQGAgL/exec";
-
-// CHECK USER LOGIN
-if(localStorage.getItem("name")){
-  showMain();
-}
-
-// SHOW MAIN
-function showMain(){
-  document.getElementById("registerBox").style.display="none";
-  document.getElementById("mainBox").style.display="block";
-  document.getElementById("welcomeText").innerText =
-    "Welcome, " + localStorage.getItem("name");
-}
-
-// REGISTER
-function register(){
-  let name = document.getElementById("name").value.trim();
-
-  if(!name){
-    alert("Please enter name ❌");
-    return;
-  }
-
-  localStorage.setItem("name", name);
-  alert("Registered ✅");
-
-  showMain();
-}
-
-// LOGOUT
-function logout(){
-  localStorage.clear();
-  location.reload();
-}
-
-// CHECK-IN / OUT
-function check(type){
-
-  if(!localStorage.getItem("name")){
-    alert("Please register first ❌");
-    return;
-  }
-
-  navigator.geolocation.getCurrentPosition(
-
-    pos => {
-      let lat = pos.coords.latitude;
-      let lng = pos.coords.longitude;
-  console.log("Opening camera...");
-      let input = document.createElement("input");
-      input.type = "file";
-      input.accept = "image/*";
-      input.capture = "environment";
-
-      input.onchange = () => {
-        let file = input.files[0];
-
-        if(!file){
-          alert("No image selected ❌");
-          return;
-        }
-
-        let reader = new FileReader();
-
-        reader.onloadend = () => {
-          let base64 = reader.result.split(",")[1];
-
-          alert("Uploading... ⏳");
-
-          fetch(API, {
-  method: "POST",
-  body: JSON.stringify({
-    source: "web",
-    name: localStorage.getItem("name"),
-    type: type,
-    lat: lat,
-    lng: lng,
-    image: base64
-  })
-}) // <--- លុបសញ្ញាដង្កៀបមួយចេញនៅទីនេះ
-.then(res => res.json())
-.then(res => {
-    console.log(res);
-    if(res.ok){ // កែពី res.success ជា res.ok (ព្រោះក្នុង App Script អ្នកប្រើ ok)
-      alert(type + " success ✅");
-    } else {
-      alert("Server error ❌: " + JSON.stringify(res));
+    function register(){
+      localStorage.setItem("name", document.getElementById("name").value);
+      location.reload();
     }
-})
-.catch(err => {
-    alert("Connection error ❌: " + err);
-});
-          })
-          .then(res => res.json())
-          .then(res => {
-              console.log(res);
 
-              if(res.success){
-                alert(type + " success ✅");
-              }else{
-                alert("Server error ❌: " + JSON.stringify(res));
-            }
-        })
-          .catch(err => {
-          alert("Connection error ❌: " + err);
-        });
+    if(localStorage.getItem("name")){
+      document.getElementById("registerBox").style.display="none";
+      document.getElementById("mainBox").style.display="block";
+      document.getElementById("welcomeText").innerText = "Welcome, " + localStorage.getItem("name");
+    }
+
+    function check(type){
+      navigator.geolocation.getCurrentPosition(pos => {
+        let input = document.createElement("input");
+        input.type = "file"; input.accept = "image/*"; input.capture = "environment";
+        input.onchange = () => {
+          let reader = new FileReader();
+          reader.onloadend = () => {
+            fetch(API, {
+              method: "POST",
+              body: JSON.stringify({source:"web", name:localStorage.getItem("name"), type:type, lat:pos.coords.latitude, lng:pos.coords.longitude, image:reader.result.split(",")[1]})
+            }).then(() => alert("Success ✅"));
+          };
+          reader.readAsDataURL(input.files[0]);
         };
-
-        reader.readAsDataURL(file);
-      };
-
-      input.click();
-    },
-
-    () => {
-      alert("Please allow location ❌");
+        input.click();
+      });
     }
-  );
-}
-</script>
-
+  </script>
 </body>
 </html>
