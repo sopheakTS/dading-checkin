@@ -61,7 +61,7 @@ button {
 
 <script>
 // 🔗 API URL (ដាក់របស់អ្នក)
-const API = "https://script.google.com/macros/s/AKfycbwgQj2VhIsOIbAgwwbjjL22M8u8Wrcg7fH31AqKO12drO3SG9thgbFD-4-kzh5GJP0k/exec";
+const API = "https://script.google.com/macros/s/AKfycbxRXFU0YRGa8Yot_p6A-s7JBB4Vt7sDXmDA4RiikaLi1Pz245puI2AmXcuU_ENQGAgL/exec";
 
 // CHECK USER LOGIN
 if(localStorage.getItem("name")){
@@ -132,15 +132,16 @@ function check(type){
           alert("Uploading... ⏳");
 
           fetch(API, {
-            method: "POST",
-            body: JSON.stringify({
-              action: "check",
-              name: localStorage.getItem("name"),
-              type: type,
-              lat: lat,
-              lng: lng,
-              image: base64
-            })
+  method: "POST",
+  body: JSON.stringify({
+    source: "web",   // ✅ ADD THIS
+    name: localStorage.getItem("name"),
+    type: type,
+    lat: lat,
+    lng: lng,
+    image: base64
+  })
+})
           })
           .then(res => res.json())
           .then(res => {
