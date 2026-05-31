@@ -1,43 +1,158 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Admin Dashboard</title>
-</head>
-<body>
-
-<h2>Employees</h2>
-<table border="1" id="empTable"></table>
-
-<h2>Attendance</h2>
-<table border="1" id="attTable"></table>
-
-<script>
+// ================= CONFIG =================
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxOc3yeQ0U4Ix3QaYwnJ3jRqJXBeSa_HUxCnYpLOnbMjOjdXcEpCM8ChzVWg2zaGDY/exec";
 
-async function loadData() {
+// TELEGRAM USER (FIXED)
+const user = {
+  id: 1388346115,
+  name: "Employee"
+};
+
+// COMPANY LOCATIONS
+const locations = [
+  { lat: 11.515820203096961, lng: 104.84054542731057 },
+  { lat: 11.502781843962362, lng: 104.85225701196639 }
+];
+
+const MAX_DISTANCE = 200; // meters
+const WORK_START = "08:00";
+
+// ================= STATE =================
+let currentPage = "loading";
+let isRegistered = false;
+
+// ================= HELPER =================
+
+// Distance (Haversine)
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3;
+  const φ1 = lat1 * Math.PI/180;
+  const φ2 = lat2 * Math.PI/180;
+  const Δφ = (lat2-lat1) * Math.PI/180;
+  const Δλ = (lon2-lon1) * Math.PI/180;
+
+  const a =
+    Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+    Math.cos(φ1) * Math.cos(φ2) *
+    Math.sin(Δλ/2) * Math.sin(Δλ/2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+// Check if inside any allowed location
+function isInsideLocation(lat, lng) {
+  return locations.some(loc => {
+    const d = getDistance(lat, lng, loc.lat, loc.lng);
+    return d <= MAX_DISTANCE;
+  });
+}
+
+// Late / On-time
+function getStatus() {
+  const now = new Date();
+  const [h, m] = WORK_START.split(":");
+
+  const start = new Date();
+  start.setHours(h, m, 0);
+
+  return now > start ? "Late" : "On-time";
+}
+
+// ================= API =================
+
+// CHECK USER REGISTER
+async function checkUser() {
   const res = await fetch(WEB_APP_URL);
   const data = await res.json();
 
-  renderTable("empTable", data.employees);
-  renderTable("attTable", data.attendance);
+  const found = data.employees.find(r => r[1] == user.id);
+
+  if (found) {
+    isRegistered = true;
+    showHome();
+  } else {
+    showRegister();
+  }
 }
 
-function renderTable(id, rows) {
-  let html = "";
+// REGISTER
+async function register() {
+  const name = document.getElementById("name").value;
+  const phone = document.getElementById("phone").value;
+  const position = document.getElementById("position").value;
 
-  rows.forEach((row, i) => {
-    html += "<tr>";
-    row.forEach(col => {
-      html += `<td>${col}</td>`;
-    });
-    html += "</tr>";
+  if (!name || !phone || !position) {
+    alert("Fill all fields!");
+    return;
+  }
+
+  await fetch(WEB_APP_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      type: "REGISTER",
+      name,
+      telegram_id: user.id,
+      phone,
+      position,
+      time: new Date().toLocaleString()
+    })
   });
 
-  document.getElementById(id).innerHTML = html;
+  alert("Registered!");
+  showHome();
 }
 
-loadData();
-</script>
+// CHECK-IN / OUT
+function check(type) {
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
 
-</body>
-</html>
+    if (!isInsideLocation(lat, lng)) {
+      alert("❌ You are outside company area!");
+      return;
+    }
+
+    const status = type === "IN" ? getStatus() : "";
+
+    await fetch(WEB_APP_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        name: user.name,
+        telegram_id: user.id,
+        type,
+        lat,
+        lng,
+        photo: "no-photo",
+        time: new Date().toLocaleString(),
+        status
+      })
+    });
+
+    alert(`✅ ${type} Success`);
+  });
+}
+
+// ================= UI =================
+
+function showRegister() {
+  document.body.innerHTML = `
+    <h2>Register</h2>
+    <input id="name" placeholder="Name"><br><br>
+    <input id="phone" placeholder="Phone"><br><br>
+    <input id="position" placeholder="Position"><br><br>
+    <button onclick="register()">Submit</button>
+  `;
+}
+
+function showHome() {
+  document.body.innerHTML = `
+    <h2>Attendance System</h2>
+    <button onclick="check('IN')">Check In</button>
+    <br><br>
+    <button onclick="check('OUT')">Check Out</button>
+  `;
+}
+
+// ================= START =================
+checkUser();
